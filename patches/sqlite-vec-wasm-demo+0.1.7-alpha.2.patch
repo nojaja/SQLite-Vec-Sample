@@ -1,0 +1,13 @@
+diff --git a/node_modules/sqlite-vec-wasm-demo/sqlite3.mjs b/node_modules/sqlite-vec-wasm-demo/sqlite3.mjs
+index 7da04d4..03cbaf5 100644
+--- a/node_modules/sqlite-vec-wasm-demo/sqlite3.mjs
++++ b/node_modules/sqlite-vec-wasm-demo/sqlite3.mjs
+@@ -119,7 +119,7 @@ sqlite3InitModuleState.debugModule('globalThis.location =',globalThis.location);
+    4) If none of the above apply, (prefix+path) is returned.
+ */
+ Module['locateFile'] = function(path, prefix) {
+-  return new URL(path, import.meta.url).href;
++  return new URL("./sqlite3.wasm", self.location.href).href;
+ }.bind(sqlite3InitModuleState);
+ 
+ /**

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sqlite-vec+transformers ベクトルデータ登録・検索サイト</title>
+</head>
+<body>
+    <h1>ベクトルデータ登録・検索サイト</h1>
+    <textarea id="textInput" rows="4" cols="50" placeholder="テキストを入力してください"></textarea><br>
+
+    <button id="insertButton">ベクトル化して登録</button>
+    <button id="searchButton">検索</button>
+
+    <button id="embedButton">Embedding生成</button>
+    <button id="dataexport" >データベースのexport</button>
+    <button id="dataimport" >データベースのimport</button>
+    <div id="result"></div>
+    <pre id="output"></pre>
+</body>
+</html>
