@@ -182,10 +182,6 @@ async function generateEmbedding(text) {
 async function insertVector(contents, embedding) {
   // ベクトルをデータベースに挿入
   const stmt = window.sqliteManager.prepare("INSERT INTO vectors(embedding, contents) VALUES (?, ?)");
-  // stmt
-  //   .bind(1, embedding.buffer)
-  //   .bind(2, contents)
-  //   .stepReset();
   stmt
     .bind([embedding.buffer, contents])
     .stepReset();
@@ -236,9 +232,9 @@ function log(message) {
   //resultDiv.textContent = message;
   const div = resultDiv.appendChild(document.createElement('div'));
   div.innerText = message;
-  // 結果を表示するための div 要素を作成
-  // const div = document.body.appendChild(document.createElement('div'));
-  // div.innerText = versionText;
+    // 結果を表示するための div 要素を作成
+    // const div = document.body.appendChild(document.createElement('div'));
+    // div.innerText = versionText;
 }
 
 /**
