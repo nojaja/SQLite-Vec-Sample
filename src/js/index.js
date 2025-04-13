@@ -48,10 +48,10 @@ class SQLiteManager {
           results.push(Object.values(row));
         }
       });
-      return {
+      return [{
         columns: columnNames,
         values: results
-      };
+      }];
     } catch (error) {
       throw error;
     }
@@ -85,7 +85,6 @@ class SQLiteManager {
 
   export() {
     const exportedData = this.sqlite3.capi.sqlite3_js_db_export(this.db);
-    console.log(exportedData)
     return exportedData;
   }
 
@@ -123,7 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.sqliteManager = await SQLiteManager.initialize();
 
     // vec_version() を実行してバージョンを取得
-    const [sqlite_version, vec_version] = window.sqliteManager.exec('select sqlite_version(), vec_version();').values;
+    const [sqlite_version, vec_version] = window.sqliteManager.exec('select sqlite_version(), vec_version();')[0].values;
     log(`sqlite_version=${sqlite_version}, vec_version=${vec_version}`);
     log('SQLite バージョン情報の取得に成功しました。');
 
@@ -142,7 +141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
           log('検索テキストをベクトル化中...');
           const embedding = await generateEmbedding(inputText);
-          const [vec_length] = window.sqliteManager.exec(`select vec_length(?);`, embedding.buffer).values;
+          const [vec_length] = window.sqliteManager.exec(`select vec_length(?);`, embedding.buffer)[0].values;
           console.log(embedding, vec_length);
           log(`ベクトル化が完了しました。vec_length: ${vec_length}, Embedding: ${embedding.slice(0, 5).join(', ')}...`);
 
@@ -165,7 +164,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
           log('検索テキストをベクトル化中...');
           const embedding = await generateEmbedding(inputText);
-          const [vec_length] = window.sqliteManager.exec(`select vec_length(?);`, embedding.buffer).values;
+          const [vec_length] = window.sqliteManager.exec(`select vec_length(?);`, embedding.buffer)[0].values;
           console.log(embedding, vec_length);
           log(`ベクトル化が完了しました。vec_length: ${vec_length}, Embedding: ${embedding.slice(0, 5).join(', ')}...`);
 
@@ -266,7 +265,7 @@ function saveFile(filename, contents) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
-}
+};
 
 async function getFile() {
   return new Promise((resolve) => {
