@@ -2,7 +2,7 @@
   "name": "SQLite-Vec-Sample",
   "version": "1.0.0",
   "description": "このプロジェクトは、[sqlite-vec](https://github.com/asg017/sqlite-vec)と[Transformer.js](https://github.com/huggingface/transformers.js)を使用して、ドキュメントのEmbedding生成からベクトルデータベースのインデクシングまでのすべての処理をブラウザ上で完結させることを目的としています。",
-  "main": "index.js",
+  "main": "src/js/index.js",
   "scripts": {
     "test": "cross-env NODE_ENV=test  patch-package && webpack && jest",
     "build": "cross-env NODE_OPTIONS=--max_old_space_size=2048 NODE_ENV=production patch-package && webpack",

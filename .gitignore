@@ -1,3 +1,8 @@
+.DS_Store
+.project*
+.settings/*
+old/*
+/node_modules
 # Logs
 logs
 *.log
@@ -42,6 +47,8 @@ build/Release
 node_modules/
 jspm_packages/
 
+# TypeScript v1 declaration files
+typings/
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
@@ -74,6 +81,7 @@ web_modules/
 
 # dotenv environment variable files
 .env
+.env.test
 .env.development.local
 .env.test.local
 .env.production.local

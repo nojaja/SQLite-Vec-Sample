@@ -1,6 +1,6 @@
 const path = require('path');
-const src = __dirname + "/src";
-const dist = __dirname + "/dist";
+const src = path.resolve(__dirname, 'src');
+const dist = path.resolve(__dirname, 'dist');
 const webpack = require('webpack');
 const version = JSON.stringify(require('./package.json').version);
 const HtmlWebpackPlugin = require('html-webpack-plugin');
@@ -14,7 +14,7 @@ module.exports = {
   devtool: 'inline-source-map',
   devServer: {
     static: {
-      directory: path.join(__dirname, 'dist'),
+      directory: dist
     },
     compress: true
   },
@@ -23,9 +23,8 @@ module.exports = {
     maxEntrypointSize: 512000,
     maxAssetSize: 512000
   },
-  context: src,
   entry: {
-    'main': './js/index.js'
+    'main': './src/js/index.js'
   },
   output: {
 		globalObject: 'self',
@@ -45,7 +44,7 @@ module.exports = {
       "fs": false
     },
     alias: {
-      '@': path.resolve(src, '/js/')
+      '@': path.resolve(src, '/src/js/')
     }
   },
   module: {
@@ -81,14 +80,14 @@ module.exports = {
     new HtmlWebpackPlugin({
       inject: true,
       chunks: ['main'],
-      template: './html/index.html',
+      template: './src/html/index.html',
       filename: './index.html'
     }),
     new CopyFilePlugin(
         [
-            { from: '../node_modules/sqlite-vec-wasm-demo/sqlite3.wasm', to: dist },
-            { from: '../node_modules/@xenova/transformers/dist/ort-wasm.wasm', to: dist },
-            { from: '../node_modules/@xenova/transformers/dist/ort-wasm-simd.wasm', to: dist },
+            { from: 'node_modules/sqlite-vec-wasm-demo/sqlite3.wasm', to: dist },
+            { from: 'node_modules/@xenova/transformers/dist/ort-wasm.wasm', to: dist },
+            { from: 'node_modules/@xenova/transformers/dist/ort-wasm-simd.wasm', to: dist },
             {
               context: 'assets/',
               from: 'models/**/*.*',

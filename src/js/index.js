@@ -7,6 +7,7 @@ let embeddingPipeline;
 
 const EmbeddingModel = 'Xenova/multilingual-e5-large'; //600MB
 //const EmbeddingModel = 'intfloat/multilingual-e5-large'; //2.24GB
+//const EmbeddingModel = 'cl-nagoya/ruri-large-v2'; //337MB
 
 // Specify a custom location for models (defaults to '/models/').
 //env.localModelPath = './models/';
@@ -20,7 +21,10 @@ env.backends.onnx.wasm.wasmPaths = './';
 class SQLiteManager {
   static async initialize() {
     // SQLite モジュールを初期化
-    const sqlite3 = await init();
+    const sqlite3 = await init({
+      print: console.log,
+      printErr: console.error
+    });
     return new SQLiteManager(sqlite3);
   }
 
@@ -67,6 +71,16 @@ class SQLiteManager {
       obj[columnNames[i]] = stmt.get(i);
     }
     return obj;
+  }
+
+  getColumnNames() {
+    const stmt = this.db.prepare("SELECT * FROM sqlite_master LIMIT 1");
+    try {
+      const columnInfo = stmt.getColumnNames();
+      return columnInfo;
+    } finally {
+      stmt.finalize();
+    }
   }
 
   export() {
