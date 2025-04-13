@@ -1,7 +1,7 @@
 # SQLite-Vec-Sample
 
 ## 概要
-このプロジェクトは、[sqlite-vec](https://github.com/asg017/sqlite-vec)と[Transformer.js](https://github.com/huggingface/transformers.js)を使用して、ドキュメントのEmbedding生成からベクトルデータベースのインデクシングまでのすべての処理をブラウザ上で完結させることを目的としています。
+このプロジェクトは、[sqlite-vec](https://github.com/asg017/sqlite-vec)と[Transformer.js](https://github.com/huggingface/transformers.js)を使用して、ドキュメントのEmbedding生成からベクトルデータベースのインデクシングまでのすべての処理をブラウザ上で完結動作するサンプルです。
 
 ## 作成について
 このプロジェクトはsql.jsでの実装をClaude 3.7 Sonnetを使ってsqlite-vecに移植したものです。
@@ -60,3 +60,7 @@
 ### 制限事項
 - ブラウザの性能に依存するため、大規模なデータセットの処理には向いていません。
 - WebAssemblyのサポートが必要です。
+
+## License
+
+Licensed under the [MIT](LICENSE) License.
