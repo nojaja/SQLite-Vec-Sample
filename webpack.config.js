@@ -1,10 +1,9 @@
 const path = require('path');
 const src = path.resolve(__dirname, 'src');
-const dist = path.resolve(__dirname, 'doc');
+const dist = path.resolve(__dirname, 'dist');
 const version = JSON.stringify(require('./package.json').version);
 const CopyPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-
 
 module.exports = {
   mode: process.env.NODE_ENV === 'production' ? 'development' : 'production',

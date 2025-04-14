@@ -25,6 +25,10 @@
     ```sh
     npm start
     ```
+4. open browser
+    ```
+    http://localhost:8080
+    ```
 
 ## プログラムの仕様
 
