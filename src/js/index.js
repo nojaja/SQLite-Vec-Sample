@@ -108,8 +108,8 @@ async function searchSimilarVectors(contents, limit = 5) {
 }
 
 // データエクスポートのイベントハンドラ
-document.getElementById("dataexport").onclick = function () {
-  const data = window.sqliteManager.export();
+document.getElementById("dataexport").onclick = async function () {
+  const data = await window.sqliteManager.export();
   saveFile('Untitled.db', data)
 };
 
@@ -119,7 +119,8 @@ document.getElementById("dataimport").onclick = async function () {
   if (file) {
     const arrayBuffer = await readFileAsArrayBuffer(file);
     try {
-      await window.sqliteManager.import(arrayBuffer);
+      const data = new Uint8Array(arrayBuffer);
+      await window.sqliteManager.import(data);
       log('Import completed successfully');
     } catch (error) {
       log('Import error: ' + error.message);
