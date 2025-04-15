@@ -1,21 +1,5 @@
 import SQLiteManager from './SQLiteManager.js'
-import { env, pipeline } from '@xenova/transformers';
-
-// Embeddingパイプラインの初期化
-let embeddingPipeline;
-
-const EmbeddingModel = 'Xenova/multilingual-e5-large'; //600MB
-//const EmbeddingModel = 'intfloat/multilingual-e5-large'; //2.24GB
-//const EmbeddingModel = 'cl-nagoya/ruri-large-v2'; //337MB
-
-// Specify a custom location for models (defaults to '/models/').
-//env.localModelPath = './models/';
-
-// Disable the loading of remote models from the Hugging Face Hub:
-//env.allowRemoteModels = false;
-
-// Set location of .wasm files. Defaults to use a CDN.
-env.backends.onnx.wasm.wasmPaths = './';
+import EmbeddingManager from './EmbeddingManager.js'
 
 // 入力フィールドとボタンの取得
 const inputField = document.getElementById('textInput');
@@ -27,22 +11,25 @@ const resultDiv = document.getElementById('result');
 // DOMが読み込まれた後に実行
 document.addEventListener('DOMContentLoaded', async () => {
   try {
-    log('Embeddingパイプラインを初期化中...');
-    log('Embedding Model:' + EmbeddingModel + 'を取得中...');
-    embeddingPipeline = await pipeline('feature-extraction', EmbeddingModel);
-    log('Embeddingパイプラインの初期化が完了しました');
-
-
     // SQLite WAMSの初期化
-    window.sqliteManager = await SQLiteManager.initialize();
+    window.sqliteManager = await SQLiteManager.initialize(null, {
+      print: console.log,
+      printErr: console.error
+    });
     log('SQLite WAMS initialized');
     // vec_version() を実行してバージョンを取得
-    const [sqlite_version, vec_version] = window.sqliteManager.exec('select sqlite_version(), vec_version();')[0].values[0];
+    const [sqlite_version, vec_version] = window.sqliteManager.db.exec('select sqlite_version(), vec_version();')[0].values[0];
     log(`sqlite_version=${sqlite_version}, vec_version=${vec_version}`);
     log('SQLite バージョン情報の取得に成功しました。');
 
+    // SQLite WAMSの初期化
+    window.embeddingManager = await EmbeddingManager.initialize({
+      print: log,
+      printErr: console.error
+    });
+
     // テーブルの作成
-    window.sqliteManager.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS vectors USING vec0(
+    window.sqliteManager.db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS vectors USING vec0(
       embedding float[1024],
       contents TEXT
     )`);
@@ -54,14 +41,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const inputText = inputField.value;
       if (inputText) {
         try {
-          log('検索テキストをベクトル化中...');
-          const embedding = await generateEmbedding(inputText);
-          const [vec_length] = window.sqliteManager.exec(`select vec_length(?);`, embedding.buffer)[0].values;
-          console.log(embedding, vec_length);
-          log(`ベクトル化が完了しました。vec_length: ${vec_length}, Embedding: ${embedding.slice(0, 5).join(', ')}...`);
-
           // ベクトルをデータベースに挿入
-          insertVector(inputText, embedding);
+          insertVector(inputText);
 
         } catch (error) {
           console.error('ベクトル化中にエラーが発生しました:', error);
@@ -77,14 +58,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const inputText = inputField.value;
       if (inputText) {
         try {
-          log('検索テキストをベクトル化中...');
-          const embedding = await generateEmbedding(inputText);
-          const [vec_length] = window.sqliteManager.exec(`select vec_length(?);`, embedding.buffer)[0].values;
-          console.log(embedding, vec_length);
-          log(`ベクトル化が完了しました。vec_length: ${vec_length}, Embedding: ${embedding.slice(0, 5).join(', ')}...`);
-
           // ベクトル検索
-          const selectResult = await searchSimilarVectors(embedding, 3);
+          const selectResult = await searchSimilarVectors(inputText, 3);
           document.getElementById('output').textContent = JSON.stringify(selectResult, null, 2);
         } catch (error) {
           console.error('ベクトル化中にエラーが発生しました:', error);
@@ -99,29 +74,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// テキストをベクトル化する関数
-async function generateEmbedding(text) {
-  const output = await embeddingPipeline(text, { pooling: 'mean', normalize: true });
-  //return new Float32Array(Array.from(output.data));
-  return new Float32Array(output.data);
-}
-
 // ベクトルデータを挿入する関数
-async function insertVector(contents, embedding) {
+async function insertVector(contents) {
+  log('テキストをベクトル化中...');
+  const data = await window.embeddingManager.evaluate('$merge([$, {"$embedding": $generateEmbedding($."$contents")}])', { '$contents': contents });
+  console.log(data);
   // ベクトルをデータベースに挿入
-  const stmt = window.sqliteManager.prepare("INSERT INTO vectors(embedding, contents) VALUES (?, ?)");
+  const stmt = window.sqliteManager.db.prepare("INSERT INTO vectors(embedding, contents) VALUES ($embedding, $contents)");
   stmt
-    .bind([embedding.buffer, contents])
+    .bind(data)
     .stepReset();
-
   stmt.finalize();
   log('ベクトルが正常に挿入されました');
 }
 
 // 類似ベクトルを検索する関数
-async function searchSimilarVectors(embedding, limit = 5) {
-  const stmt = window.sqliteManager.prepare("SELECT *,distance FROM vectors WHERE embedding MATCH ? ORDER BY distance LIMIT 3");
-  stmt.bind([embedding.buffer]);
+async function searchSimilarVectors(contents, limit = 5) {
+  log('テキストをベクトル化中...');
+  const data = await window.embeddingManager.evaluate('{"$embedding": $generateEmbedding($."$contents"), "$limit":$."$limit"}', { '$contents': contents, '$limit': limit });
+  console.log(data);
+
+  const stmt = window.sqliteManager.db.prepare("SELECT *,distance FROM vectors WHERE embedding MATCH $embedding ORDER BY distance LIMIT $limit");
+  stmt.bind(data);
   const selectResult = [];
   while (stmt.step()) {
     console.log(stmt);
@@ -132,7 +106,6 @@ async function searchSimilarVectors(embedding, limit = 5) {
   log('検索完了');
   return selectResult;
 }
-
 
 // データエクスポートのイベントハンドラ
 document.getElementById("dataexport").onclick = function () {
@@ -160,9 +133,9 @@ function log(message) {
   //resultDiv.textContent = message;
   const div = resultDiv.appendChild(document.createElement('div'));
   div.innerText = message;
-    // 結果を表示するための div 要素を作成
-    // const div = document.body.appendChild(document.createElement('div'));
-    // div.innerText = versionText;
+  // 結果を表示するための div 要素を作成
+  // const div = document.body.appendChild(document.createElement('div'));
+  // div.innerText = versionText;
 }
 
 /**

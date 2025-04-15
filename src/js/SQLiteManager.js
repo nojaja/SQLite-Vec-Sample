@@ -2,44 +2,46 @@
 import { default as init } from 'sqlite-vec-wasm-demo';
 
 class SQLiteManager {
-  static async initialize(data) {
+  static async initialize(data, options) {
     // SQLite モジュールを初期化
     const sqlite3 = await init({
-      print: console.log,
-      printErr: console.error
+      print: options.print || (() => { }),
+      printErr: options.printErr || (() => { })
     });
-        const sqlite3_instance = new SQLiteManager(sqlite3, data);
-        // sqlite3_instanceにoriginalプロパティを作成
-        sqlite3_instance.original = { db: {} };
+    const sqlite3_instance = new SQLiteManager(sqlite3, data);
+    // sqlite3_instanceにoriginalプロパティを作成
+    sqlite3_instance.original = { db: {} };
 
-        // 元のprepareメソッドを保存
-        sqlite3_instance.original.db.prepare = sqlite3_instance.db.prepare;
-        sqlite3_instance.original.db.exec = sqlite3_instance.db.exec;
+    // 元のprepareメソッドを保存
+    sqlite3_instance.original.db.prepare = sqlite3_instance.db.prepare;
+    sqlite3_instance.original.db.exec = sqlite3_instance.db.exec;
 
-        // db.prepareをオーバーライド
-        sqlite3_instance.db.prepare = function (sql) {
-            return sqlite3_instance.prepare(sql);
-        };
-        // db.execをオーバーライド
-        sqlite3_instance.db.exec = function (sql, bind) {
-            return sqlite3_instance.exec(sql, bind);
-        };
-        return sqlite3_instance;
+    // db.prepareをオーバーライド
+    sqlite3_instance.db.prepare = function (sql) {
+      return sqlite3_instance.prepare(sql);
+    };
+    // db.execをオーバーライド
+    sqlite3_instance.db.exec = function (sql, bind) {
+      return sqlite3_instance.exec(sql, bind);
+    };
+    return sqlite3_instance;
   }
 
-  constructor(sqlite3, data) {
+  constructor(sqlite3, data, options = {}) {
+    this.print = options.print || (() => { });
+    this.printErr = options.printErr || (() => { });
     this.sqlite3 = sqlite3;
-        // ファイル名生成
+    // ファイル名生成
     this.currentFilename = "dbfile_" + (0xffffffff * Math.random() >>> 0);
-        if (data) {
-            // VFSを使用してデータをインポート
-            sqlite3.capi.sqlite3_js_vfs_create_file(
-                'unix',
-                this.currentFilename,
-                data,
-                data.length
-            );
-        }
+    if (data) {
+      // VFSを使用してデータをインポート
+      sqlite3.capi.sqlite3_js_vfs_create_file(
+        'unix',
+        this.currentFilename,
+        data,
+        data.length
+      );
+    }
     // データベースを作成
     this.db = new sqlite3.oo1.DB(this.currentFilename, "ct");
   }
@@ -67,13 +69,13 @@ class SQLiteManager {
   }
 
   prepare(sql) {
-        // 元のprepareメソッドを呼び出し
-        const stmt = this.original.db.prepare.call(this.db, sql);
-        // SQLiteManagerのカスタマイズを適用
-        stmt.getRowAsObject = () => this.getRowAsObject.call(this,stmt);
-        stmt.getAsObject = () => this.getRowAsObject.call(this,stmt); //sql.js
-        
-        return stmt;
+    // 元のprepareメソッドを呼び出し
+    const stmt = this.original.db.prepare.call(this.db, sql);
+    // SQLiteManagerのカスタマイズを適用
+    stmt.getRowAsObject = () => this.getRowAsObject.call(this, stmt);
+    stmt.getAsObject = () => this.getRowAsObject.call(this, stmt); //sql.js
+
+    return stmt;
   }
 
   // ヘルパーメソッド：行データをオブジェクトとして取得
