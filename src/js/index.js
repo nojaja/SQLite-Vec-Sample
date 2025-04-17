@@ -1,4 +1,5 @@
 import SQLiteManager from './SQLiteManager.js'
+import DataTransformation from './DataTransformation.js'
 import EmbeddingManager from './EmbeddingManager.js'
 
 // 入力フィールドとボタンの取得
@@ -22,11 +23,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     log(`sqlite_version=${sqlite_version}, vec_version=${vec_version}`);
     log('SQLite バージョン情報の取得に成功しました。');
 
-    // SQLite WAMSの初期化
+    window.dataTransformation = await DataTransformation.initialize({
+      print: log,
+      printErr: console.error
+    });
+
     window.embeddingManager = await EmbeddingManager.initialize({
       print: log,
       printErr: console.error
     });
+    window.dataTransformation.registerFunction("generateEmbedding", async (text) => await window.embeddingManager.generateEmbedding(text), "<s>");
 
     // テーブルの作成
     window.sqliteManager.db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS vectors USING vec0(
@@ -77,7 +83,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ベクトルデータを挿入する関数
 async function insertVector(contents) {
   log('テキストをベクトル化中...');
-  const data = await window.embeddingManager.evaluate('$merge([$, {"$embedding": $generateEmbedding($."$contents")}])', { '$contents': contents });
+  const data = await window.dataTransformation.evaluate('$merge([$, {"$embedding": $generateEmbedding($."$contents")}])', { '$contents': contents });
   console.log(data);
   // ベクトルをデータベースに挿入
   const stmt = window.sqliteManager.db.prepare("INSERT INTO vectors(embedding, contents) VALUES ($embedding, $contents)");
@@ -91,7 +97,7 @@ async function insertVector(contents) {
 // 類似ベクトルを検索する関数
 async function searchSimilarVectors(contents, limit = 5) {
   log('テキストをベクトル化中...');
-  const data = await window.embeddingManager.evaluate('{"$embedding": $generateEmbedding($."$contents"), "$limit":$."$limit"}', { '$contents': contents, '$limit': limit });
+  const data = await window.dataTransformation.evaluate('{"$embedding": $generateEmbedding($."$contents"), "$limit":$."$limit"}', { '$contents': contents, '$limit': limit });
   console.log(data);
 
   const stmt = window.sqliteManager.db.prepare("SELECT *,distance FROM vectors WHERE embedding MATCH $embedding ORDER BY distance LIMIT $limit");

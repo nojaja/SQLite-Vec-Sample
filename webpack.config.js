@@ -1,6 +1,7 @@
 const path = require('path');
 const src = path.resolve(__dirname, 'src');
 const dist = path.resolve(__dirname, 'dist');
+const webpack = require('webpack');
 const version = JSON.stringify(require('./package.json').version);
 const CopyPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
@@ -29,7 +30,16 @@ module.exports = {
     path: dist,
     publicPath:""
   },
+  resolve: {
+    fallback: {
+      "fs": false,
+      "path": require.resolve("path-browserify") 
+    }
+  },
   plugins: [
+    new webpack.ProvidePlugin({
+      Buffer: ['buffer', 'Buffer']
+    }),
     new HtmlWebpackPlugin({
       inject: true,
       chunks: ['main'],
