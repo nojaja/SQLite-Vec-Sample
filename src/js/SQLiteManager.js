@@ -1,13 +1,43 @@
 // SQLite モジュールをインポート
 import { default as init } from 'sqlite-vec-wasm-demo';
+import * as sourceMapSupport from 'source-map-support';
+import path from 'path';
+import * as fs from 'fs';
+
+//デバッグ用のsourceMap設定
+sourceMapSupport.install();
 
 class SQLiteManager {
   static async initialize(data, options) {
     // SQLite モジュールを初期化
-    const sqlite3 = await init({
-      print: options.print || (() => { }),
-      printErr: options.printErr || (() => { })
-    });
+    // Ensure global.window is set to simulate browser environment for wasm
+    if (typeof window === 'undefined') global.window = {};
+    // Dynamically import sqlite3 wasm module on first call
+    let sqlite3 = null;
+    if (typeof process !== 'undefined') { // node.js環境
+      // Load sqlite3.wasm from dist or pkg output directory
+      const isPkg = process.pkg !== undefined;
+      const wasmPath = isPkg
+        ? path.join(path.dirname(process.execPath), 'sqlite3.wasm')
+        : path.join(process.cwd(), 'dist', 'sqlite3.wasm');
+      const wasmBinary = fs.readFileSync(wasmPath);
+      // Initialize wasm module
+      sqlite3 = await init({
+        print: options.print || (() => { }),
+        printErr: options.printErr || (() => { }),
+        wasmBinary,
+        instantiateWasm: (imports, successCallback) => {
+          WebAssembly.instantiate(wasmBinary, imports)
+            .then(({ instance, module }) => successCallback(instance, module));
+          return {};
+        }
+      });
+    } else { // ブラウザ環境
+      sqlite3 = await init({
+        print: options.print || (() => { }),
+        printErr: options.printErr || (() => { })
+      });
+    }
 
     const sqlite3_instance = new SQLiteManager(sqlite3, options);
     await sqlite3_instance.setupEnvironment(data);
@@ -25,7 +55,7 @@ class SQLiteManager {
   async setupEnvironment(data) {
     // ファイル名生成
     this.currentFilename = "dbfile_" + (0xffffffff * Math.random() >>> 0);
-    if (data) {
+    if (data && data.length) {
       // VFSを使用してデータをインポート
       this.sqlite3.capi.sqlite3_js_vfs_create_file(
         'unix',
@@ -35,7 +65,7 @@ class SQLiteManager {
       );
     }
     // データベースを作成
-        this.db = new this.sqlite3.oo1.DB(this.currentFilename, "c");
+    this.db = new this.sqlite3.oo1.DB(this.currentFilename, "c");
     // sqlite3_instanceにoriginalプロパティを作成
     this.original = { db: {} };
 
@@ -50,10 +80,10 @@ class SQLiteManager {
       // SQLiteManagerのカスタマイズを適用
       stmt.getRowAsObject = () => this.getRowAsObject.call(this, stmt);
       stmt.getAsObject = () => this.getRowAsObject.call(this, stmt); //sql.js
-            stmt._bind = stmt.bind;
-            stmt.bind = (...args) => {
-                return this.bind.apply(this, [stmt, ...args]);
-            }
+      stmt._bind = stmt.bind;
+      stmt.bind = (...args) => {
+        return this.bind.apply(this, [stmt, ...args]);
+      }
 
       return stmt;
     };
@@ -91,26 +121,26 @@ class SQLiteManager {
     return obj;
   }
 
-    // ヘルパーメソッド：バインドオブジェクトをフィルタリングしてバインドする
-    filteredBindObject(stmt, bindObject) {
-        if (bindObject && typeof bindObject === 'object') {
-            return Object.fromEntries(
-                Object.entries(bindObject).filter(([key, _]) => 0 !== this.sqlite3.capi.sqlite3_bind_parameter_index(stmt.pointer, key))
-            );
-        } else {
-            return bindObject;
-        }
+  // ヘルパーメソッド：バインドオブジェクトをフィルタリングしてバインドする
+  filteredBindObject(stmt, bindObject) {
+    if (bindObject && typeof bindObject === 'object') {
+      return Object.fromEntries(
+        Object.entries(bindObject).filter(([key, _]) => 0 !== this.sqlite3.capi.sqlite3_bind_parameter_index(stmt.pointer, key))
+      );
+    } else {
+      return bindObject;
     }
+  }
 
-    bind(stmt, ...args) {
-        stmt.reset();
-        if (args.length === 1 && args[0] && typeof args[0] === 'object') {
-            const bindObject = this.filteredBindObject(stmt, args[0]);
-            return stmt._bind.apply(stmt, [bindObject]);
-        } else {
-            return stmt._bind.apply(stmt, ...args);
-        }
+  bind(stmt, ...args) {
+    stmt.reset();
+    if (args.length === 1 && args[0] && typeof args[0] === 'object') {
+      const bindObject = this.filteredBindObject(stmt, args[0]);
+      return stmt._bind.apply(stmt, [bindObject]);
+    } else {
+      return stmt._bind.apply(stmt, ...args);
     }
+  }
 
   export() {
     const exportedData = this.sqlite3.capi.sqlite3_js_db_export(this.db);

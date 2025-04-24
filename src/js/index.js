@@ -65,8 +65,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (inputText) {
         try {
           // ベクトル検索
-          const selectResult = await searchSimilarVectors(inputText, 3);
-          document.getElementById('output').textContent = JSON.stringify(selectResult, null, 2);
+          await searchSimilarVectors(inputText, 3);
         } catch (error) {
           console.error('ベクトル化中にエラーが発生しました:', error);
           log('エラーが発生しました。もう一度お試しください。');
@@ -100,17 +99,34 @@ async function searchSimilarVectors(contents, limit = 5) {
   const data = await window.dataTransformation.evaluate('{"$embedding": $generateEmbedding($."$contents"), "$limit":$."$limit"}', { '$contents': contents, '$limit': limit });
   console.log(data);
 
-  const stmt = window.sqliteManager.db.prepare("SELECT *,distance FROM vectors WHERE embedding MATCH $embedding ORDER BY distance LIMIT $limit");
-  stmt.bind(data);
-  const selectResult = [];
-  while (stmt.step()) {
-    console.log(stmt);
-    console.log(stmt.getColumnNames());
-    console.log(stmt.get(2));
-    selectResult.push(`ID: ${stmt.get(0)} | Text: ${stmt.get(2)} | Distance: ${stmt.get(3)}`);
+  const sql = "SELECT *,distance FROM vectors WHERE embedding MATCH $embedding ORDER BY distance LIMIT $limit";
+  console.log(sql);
+  addResult('sql    > ' + sql);
+  const result = window.sqliteManager.db.exec(sql,data)[0];
+  console.log(result);
+
+  if (result && result.values.length > 0) {
+    // "embedding" 列のインデックスを取得
+    const removeIdx = result.columns.indexOf('embedding');
+    // embedding 列を除いた columns を出力
+    const cols = result.columns.filter((_, i) => i !== removeIdx);
+    addResult('result.columns> ' + cols.join(', '));
+    // 各行から embedding の値を除いて出力
+    result.values.forEach(row => {
+      const vals = row.filter((_, i) => i !== removeIdx);
+      addResult('result.values> ' + vals.join(', '));
+    });
   }
+  // const stmt = window.sqliteManager.db.prepare("SELECT *,distance FROM vectors WHERE embedding MATCH $embedding ORDER BY distance LIMIT $limit");
+  // stmt.bind(data);
+  // const selectResult = [];
+  // while (stmt.step()) {
+  //   console.log(stmt);
+  //   console.log(stmt.getColumnNames());
+  //   console.log(stmt.get(2));
+  //   selectResult.push(`ID: ${stmt.get(0)} | Text: ${stmt.get(2)} | Distance: ${stmt.get(3)}`);
+  // }
   log('検索完了');
-  return selectResult;
 }
 
 // データエクスポートのイベントハンドラ
@@ -143,6 +159,12 @@ function log(message) {
   // 結果を表示するための div 要素を作成
   // const div = document.body.appendChild(document.createElement('div'));
   // div.innerText = versionText;
+}
+
+function addResult(data) {
+  const code = document.createElement("li");
+  code.textContent = data;
+  document.getElementById("output").appendChild(code);
 }
 
 /**

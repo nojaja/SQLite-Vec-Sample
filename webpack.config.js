@@ -32,8 +32,9 @@ module.exports = {
   },
   resolve: {
     fallback: {
-      "fs": false,
-      "path": require.resolve("path-browserify") 
+      'fs': false,
+      'path': require.resolve("path-browserify"),
+      'process': require.resolve("process/browser")
     }
   },
   plugins: [
