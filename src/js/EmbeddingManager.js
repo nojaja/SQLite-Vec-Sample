@@ -1,4 +1,4 @@
-import * as sourceMapSupport from 'source-map-support'
+import * as sourceMapSupport from 'source-map-support';
 
 //デバッグ用のsourceMap設定
 sourceMapSupport.install();
