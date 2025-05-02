@@ -3,6 +3,7 @@ import { default as init } from 'sqlite-vec-wasm-demo';
 import * as sourceMapSupport from 'source-map-support';
 import path from 'path';
 import * as fs from 'fs';
+import { splitQuery, sqliteSplitterOptions } from 'dbgate-query-splitter';
 
 //デバッグ用のsourceMap設定
 sourceMapSupport.install();
@@ -14,7 +15,7 @@ class SQLiteManager {
     if (typeof window === 'undefined') global.window = {};
     // Dynamically import sqlite3 wasm module on first call
     let sqlite3 = null;
-    if (typeof process !== 'undefined') { // node.js環境
+    if (options.env === 'node' && typeof process !== 'undefined') { // node.js環境
       // Load sqlite3.wasm from dist or pkg output directory
       const isPkg = process.pkg !== undefined;
       const wasmPath = isPkg
@@ -112,6 +113,11 @@ class SQLiteManager {
     };
   }
 
+  splitStatements(sql) {
+    // dbgate-query-splitterでSQL文を分割
+    return splitQuery(sql, sqliteSplitterOptions);
+  }
+
   // ヘルパーメソッド：行データをオブジェクトとして取得
   getRowAsObject(stmt) {
     const obj = {};
@@ -143,22 +149,27 @@ class SQLiteManager {
     }
   }
 
-
   executeQuery(query) {
+    const results = [];
     try {
-      const isSelect = /(^SELECT|^EXPLAIN QUERY PLAN)\s/i.test(query.trim()); // SELECT文もしくはEXPLAIN QUERY PLAN文かを判定
-      if (isSelect) {
-        const [result] = this.db.exec(query);
-        const results = result.values.map(vals => Object.fromEntries(result.columns.map((c, i) => [c, vals[i]])));
-        return { success: true, results, columns: result.columns };
+      const statements = this.splitStatements(query);
+      for (const stmtSql of statements) {
+    try {
+          const [result] = this.db.exec(stmtSql);
+          if (result && result.columns && result.columns.length > 0) {
+            const resultmap = result.values.map(vals => Object.fromEntries(result.columns.map((c, i) => [c, vals[i]])));
+            results.push({ success: true, results: resultmap, columns: result.columns });
       } else {
-        // DDL/非SELECTは末尾セミコロンを除去して実行
-        const sql = query.trim().replace(/;$/, '');
-        this.db.exec(sql);
-        return { success: true, info: {} };
+            results.push({ success: true, info: {} });
+          }
+        } catch (error) {
+          results.push({ success: false, error: error.message });
+        }
       }
+      return results;
     } catch (error) {
-      return { success: false, error: error.message };
+      results.push({ success: false, error: error.message });
+      return results;
     }
   }
 
